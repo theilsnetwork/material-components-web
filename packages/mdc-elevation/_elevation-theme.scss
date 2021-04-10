@@ -218,8 +218,7 @@ $transition-timing-function: animation-variables.$standard-curve-timing-function
   $feat-color: feature-targeting.create-target($query, color);
 
   @include feature-targeting.targets($feat-color) {
-    /* @alternate */
-    box-shadow: $box-shadow;
+    @include theme.property(box-shadow, $box-shadow, $gss: (alternate: true));
   }
 }
 
@@ -307,6 +306,7 @@ $transition-timing-function: animation-variables.$standard-curve-timing-function
   $z-value,
   $color: $baseline-color,
   $opacity-boost: 0,
+  $custom-prop: null,
   $query: feature-targeting.all()
 ) {
   $box-shadow: elevation-box-shadow(
@@ -314,6 +314,11 @@ $transition-timing-function: animation-variables.$standard-curve-timing-function
     $color: $color,
     $opacity-boost: $opacity-boost
   );
+
+  @if custom-properties.is-custom-prop($custom-prop) {
+    $custom-prop: custom-properties.set-fallback($custom-prop, $box-shadow);
+    $box-shadow: $custom-prop;
+  }
 
   @include shadow($box-shadow, $query: $query);
 }
