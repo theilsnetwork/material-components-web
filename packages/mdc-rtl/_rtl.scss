@@ -25,7 +25,10 @@
 
 @use 'sass:list';
 @use 'sass:meta';
+@use 'sass:selector';
+@use 'sass:string';
 @use '@material/theme/theme';
+@use '@material/theme/tools';
 
 $include: true !default;
 
@@ -70,9 +73,75 @@ $include: true !default;
 /// @content Content to be styled in an RTL context.
 @mixin rtl() {
   @if ($include) {
-    [dir='rtl'] &,
-    &[dir='rtl'] {
-      @content;
+    $appended-selectors: ();
+    $selector-list: tools.append-strict(&, '[dir=rtl]');
+    @for $i from 1 through list.length($selector-list) {
+      $complex-selector: list.nth($selector-list, $i);
+      // Child element BEM selectors within an BEM selector component do not
+      // need an RTL attribute selector directly appended to them since they
+      // never have their direction set independently.
+      //
+      // .mdc-foo[dir="rtl"] = yes
+      // .mdc-foo--modifier[dir="rtl"] = yes
+      // .mdc-foo__child[dir="rtl"] = no
+      //
+      // Prune any of these extra complex selectors from the final list.
+      $use-complex-selector: null;
+      @for $j from 1 through list.length($complex-selector) {
+        $compound-selector: list.nth($complex-selector, $j);
+        $has-dir: string.index($compound-selector, '[dir=rtl]') != null;
+        @if $use-complex-selector == null and $has-dir {
+          // Stop searching for the [dir] attribute and use the selector by
+          // default.
+          $use-complex-selector: true;
+          // Element BEM class names have two underscores.
+          $is-child-selector: string.index($compound-selector, '__') != null;
+          @if $is-child-selector and $j == 1 {
+            // The child element BEM class is the first selector, and [dir]
+            // is not needed.
+            // ex: .mdc-foo__child[dir=rtl] svg
+            $use-complex-selector: false;
+          } @else if $is-child-selector {
+            // There are preceeding selectors that are not child element BEM
+            // classes. Move the [dir] attribute to those instead.
+            // ex: .mdc-foo--modifier .mdc-foo__child[dir=rtl]
+            //       to
+            //     .mdc-foo--modifier[dir=rtl] .mdc-foo__child
+            $complex-selector: list.set-nth(
+              $complex-selector,
+              1,
+              tools.append-strict(list.nth($complex-selector, 1), '[dir=rtl]')
+            );
+            // Get the original selector without the appended [dir] attribute
+            // from the parent selector sigil.
+            $original-compound-selector: list.nth(list.nth(&, $i), $j);
+            $complex-selector: list.set-nth(
+              $complex-selector,
+              $j,
+              $original-compound-selector
+            );
+          }
+        }
+      }
+
+      @if $use-complex-selector {
+        $appended-selectors: list.append(
+          $appended-selectors,
+          $complex-selector,
+          $separator: comma
+        );
+      }
+    }
+
+    $rtl-selectors: list.join(
+      selector.nest('[dir=rtl]', &),
+      $appended-selectors
+    );
+
+    @at-root {
+      #{$rtl-selectors} {
+        @content;
+      }
     }
   }
 }

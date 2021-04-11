@@ -20,6 +20,11 @@
 // THE SOFTWARE.
 //
 
+@use 'sass:list';
+@use 'sass:math';
+@use 'sass:selector';
+@use 'sass:string';
+
 /// Returns either the first provided value if it is not null, or the second
 /// value if the first is null.
 ///
@@ -31,4 +36,286 @@
 /// @return Either the first or the second value.
 @function either($first, $second) {
   @return if($first != null, $first, $second);
+}
+
+/// Identical to `selector.append()`, but adheres strictly to CSS compound
+/// selector order.
+///
+/// @example - scss
+///   .foo::before {
+///     &[dir=rtl] { /* Invalid */ }
+///   }
+///
+///   .foo::before {
+///     @include append-strict(&, '[dir=rtl]') { /* Valid */ }
+///   }
+///
+/// @example - css
+///   .foo::before[dir=rtl] {
+///     /* Invalid */
+///   }
+///
+///   .foo[dir=rtl]::before {
+///     /* Valid */
+///   }
+///
+/// This is useful for mixins where the parent selector is unknown and the
+/// appended selector's position is critical to maintain valid CSS.
+///
+/// @param {List} $selectors - One or more selectors to append.
+@mixin append-strict($selectors...) {
+  @at-root {
+    #{append-strict($selectors...)} {
+      @content;
+    }
+  }
+}
+
+/// Function version of `append-strict()`. Use this instead of the mixin along
+/// with `@at-root` when combining the result of `append-strict()` with other
+/// selectors.
+///
+/// @example - scss
+///   .foo::before {
+///     // Cannot add a list of other selectors with an @include mixin.
+///     // @include append-strict(&, ':hover'), & {}
+///
+///     @at-root {
+///       // Use @at-root and interpolation to add additional selectors
+///       #{append-strict(&, ':hover')},
+///       & {
+///         color: inherit;
+///       }
+///     }
+///   }
+///
+/// @example - css
+///   .foo:hover::before,
+///   .foo::before {
+///     color: inherit;
+///   }
+///
+/// @see {mixin} append-strict
+///
+/// @param {List} $selectors - One or more selectors to append.
+/// @return {List} The appended selectors in selector value format.
+@function append-strict($selectors...) {
+  $selector-lists: ();
+  @each $selector in $selectors {
+    $selector-lists: list.append($selector-lists, selector.parse($selector));
+  }
+
+  @return _append-strict($selector-lists);
+}
+
+@function _append-strict(
+  $selector-lists,
+  $n: 1,
+  $selector-list-result: (),
+  $current-complex-selectors: ()
+) {
+  @if $n > list.length($selector-lists) {
+    $complex-selector: list.nth($current-complex-selectors, 1);
+    @if list.length($current-complex-selectors) > 1 {
+      @for $i from 2 through list.length($current-complex-selectors) {
+        $complex-selector: _append-strict-complex-selectors(
+          $complex-selector,
+          list.nth($current-complex-selectors, $i)
+        );
+      }
+    }
+
+    @return list.append(
+      $selector-list-result,
+      $complex-selector,
+      $separator: comma
+    );
+  }
+
+  $current-selector-list: list.nth($selector-lists, $n);
+  @each $complex-selector in $current-selector-list {
+    $selector-list-result: _append-strict(
+      $selector-lists,
+      $n + 1,
+      $selector-list-result,
+      list.append($current-complex-selectors, $complex-selector)
+    );
+  }
+
+  @return $selector-list-result;
+}
+
+@function _append-strict-complex-selectors(
+  $complex-selector-a,
+  $complex-selector-b
+) {
+  $last-compound-selector-a: list.nth(
+    $complex-selector-a,
+    list.length($complex-selector-a)
+  );
+  $first-compound-selector-b: list.nth($complex-selector-b, 1);
+
+  $simple-selectors-a: selector.simple-selectors($last-compound-selector-a);
+  $simple-selectors-b: selector.simple-selectors($first-compound-selector-b);
+  $sorted-simple-selectors: _quick-sort-simple-selectors(
+    list.join($simple-selectors-a, $simple-selectors-b)
+  );
+
+  $result: list.set-nth(
+    $complex-selector-a,
+    list.length($complex-selector-a),
+    _join-simple-selectors($sorted-simple-selectors)
+  );
+
+  @if list.length($complex-selector-b) > 1 {
+    @for $i from 2 through list.length($complex-selector-b) {
+      $result: list.append(list.nth($complex-selector-b, $i));
+    }
+  }
+
+  @return $result;
+}
+
+@function _join-simple-selectors($simple-selectors) {
+  $compound-selector: '';
+  $parens-index: _get-parens-selector-index($simple-selectors);
+  @if $parens-index {
+    // Contains a selector, such as :host() that other selectors must be placed
+    // within the parentheses of. This selector should be moved to the front of
+    // the compound selector.
+    $compound-selector: list.nth($simple-selectors, $parens-index);
+    @if string.index($compound-selector, '(') != null {
+      // Already has parens. Remove the final closing parens so that additional
+      // selectors are placed within the parentheses.
+      $compound-selector: string.slice(
+        $compound-selector,
+        1,
+        string.length($compound-selector) - 1
+      );
+    } @else {
+      // Otherwise, add an opening parens.
+      $compound-selector: #{$compound-selector}#{string.unquote('(')};
+    }
+  }
+
+  @for $i from 1 through list.length($simple-selectors) {
+    @if $i != $parens-index {
+      // Skip the parens selector that was moved to the front, if any
+      $simple-selector: list.nth($simple-selectors, $i);
+      $compound-selector: #{$compound-selector}#{$simple-selector};
+    }
+  }
+
+  @if $parens-index {
+    // Add the closing parens
+    $compound-selector: #{$compound-selector}#{string.unquote(')')};
+  }
+
+  @return $compound-selector;
+}
+
+@function _get-parens-selector-index($simple-selectors) {
+  @for $i from 1 through list.length($simple-selectors) {
+    $simple-selector: list.nth($simple-selectors, $i);
+    @if string.index($simple-selector, ':host') or
+      string.index($simple-selector, '::slotted')
+    {
+      @return $i;
+    }
+  }
+
+  @return null;
+}
+
+@function _quick-sort-simple-selectors($simple-selectors) {
+  @if list.length($simple-selectors) <= 1 {
+    @return $simple-selectors;
+  }
+
+  $before: ();
+  $same: ();
+  $after: ();
+
+  $middle: list.nth(
+    $simple-selectors,
+    math.ceil(list.length($simple-selectors) / 2)
+  );
+
+  @each $selector in $simple-selectors {
+    $result: _compare-selectors($selector, $middle);
+    @if $result == -1 {
+      $before: list.append($before, $selector);
+    } @else if $result == 0 {
+      $same: list.append($same, $selector);
+    } @else {
+      $after: list.append($after, $selector);
+    }
+  }
+
+  $before: _quick-sort-simple-selectors($before);
+  $after: _quick-sort-simple-selectors($after);
+  @return list.join($before, list.join($same, $after));
+}
+
+@function _compare-selectors($selector-a, $selector-b) {
+  @if $selector-a == $selector-b {
+    @return 0;
+  }
+
+  $a-order: _get-selector-order($selector-a);
+  $b-order: _get-selector-order($selector-b);
+  @if $a-order == $b-order {
+    @return 0;
+  }
+
+  @if $a-order < $b-order {
+    @return -1;
+  }
+
+  @return 1;
+}
+
+@function _get-selector-order($simple-selector) {
+  // <compound-selector> = [ <type-selector>? <subclass-selector>*
+  //                         [ <pseudo-element-selector> <pseudo-class-selector>* ]* ]!
+  @if _is-type-selector($simple-selector) {
+    @return 0;
+  }
+
+  @if _is-pseudo-element-selector($simple-selector) {
+    @return 2;
+  }
+
+  @return 1;
+}
+
+@function _is-type-selector($simple-selector) {
+  @return not _is-subclass-selector($simple-selector);
+}
+
+@function _is-subclass-selector($simple-selector) {
+  @return _is-id-selector($simple-selector) or
+    _is-class-selector($simple-selector) or
+    _is-attribute-selector($simple-selector) or
+    _is-pseudo-class-selector($simple-selector);
+}
+
+@function _is-id-selector($simple-selector) {
+  @return string.index($simple-selector, '#') == 1;
+}
+
+@function _is-class-selector($simple-selector) {
+  @return string.index($simple-selector, '.') == 1;
+}
+
+@function _is-attribute-selector($simple-selector) {
+  @return string.index($simple-selector, '[') == 1;
+}
+
+@function _is-pseudo-class-selector($simple-selector) {
+  @return string.index($simple-selector, ':') == 1;
+}
+
+@function _is-pseudo-element-selector($simple-selector) {
+  @return string.index($simple-selector, '::') == 1;
 }

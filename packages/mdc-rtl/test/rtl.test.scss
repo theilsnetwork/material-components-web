@@ -1,0 +1,31 @@
+@use '../rtl';
+
+.test-pseudo-element {
+  &::before {
+    @include rtl.rtl {
+      margin-right: 0;
+    }
+  }
+}
+
+.test-bem__child-no-rtl-append {
+  @include rtl.rtl {
+    margin-right: 0;
+  }
+}
+
+.test-bem__child {
+  .test-bem--should-have-rtl {
+    @include rtl.rtl {
+      margin-right: 0;
+    }
+  }
+}
+
+.test-bem {
+  .test-bem__child {
+    @include rtl.rtl {
+      margin-right: 0;
+    }
+  }
+}
