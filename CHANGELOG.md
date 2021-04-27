@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [11.1.0](https://github.com/material-components/material-components-web/compare/v11.0.0...v11.1.0) (2021-04-27)
+
+
+### Bug Fixes
+
+* **button:** Fix non-text buttons with icons to have reduced horizontal padding on the side with the icon. ([197f64f](https://github.com/material-components/material-components-web/commit/197f64fa2a4b78907261e820c5e1e8724777c92c))
+* **list:** Fixed the selected + focused state of list item in HCM ([8ba3e29](https://github.com/material-components/material-components-web/commit/8ba3e298ca18cf8e7e11f07559e27287e74efeb8))
+* **rtl:** do not emit if a left/right value or replacement is null ([ec4ac52](https://github.com/material-components/material-components-web/commit/ec4ac5234c31df882a85a90af4d53b6797c8eb49))
+* **switch:** export temporary deprecated version ([bd68539](https://github.com/material-components/material-components-web/commit/bd685395b652f448e889c123cda97efd77c85fcd))
+* **tooltip:** Fixing component definition of MDCTooltipAdatper#deregisterAnchorEventHandler. ([d928692](https://github.com/material-components/material-components-web/commit/d928692b52157c91c46c9addf66f93ebdff09145))
+
+
+### Features
+
+* **button:** Add focus indicator to link buttons in HCM. ([cad4896](https://github.com/material-components/material-components-web/commit/cad4896899cc89b1354ba5df95c3870efbb99af5))
+* **card:** Moving ripple into a `mdc-card__ripple` element rather than the `mdc-card__primary-action`. ([8ace3b8](https://github.com/material-components/material-components-web/commit/8ace3b8106499cc9c126abde77258bcae7d5929d))
+* **dialog:** removing call to `#close` within `#destroy`. ([5631828](https://github.com/material-components/material-components-web/commit/5631828e1541df22feb879a5310e57494ee722a3))
+* **switch:** add new component and foundation ([ef43e6d](https://github.com/material-components/material-components-web/commit/ef43e6d9607c7e8d6495b4a82e2178059dbe37fa))
+* **tooltip:** Adds logic to determine valid position options for tooltip w/caret, and select which should be used. ([2ebfc53](https://github.com/material-components/material-components-web/commit/2ebfc537439508ea08bcd99991eed4fe838f3550))
+* **tooltip:** Adjusting logic and styles so the caret better matches spec. ([55ad2d7](https://github.com/material-components/material-components-web/commit/55ad2d7d8f9bcc979f5334352620815d6ea9add6))
+
+
+
+
+
 # [11.0.0](https://github.com/material-components/material-components-web/compare/v10.0.0...v11.0.0) (2021-04-15)
 
 
